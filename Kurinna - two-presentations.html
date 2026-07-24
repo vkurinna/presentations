@@ -1,0 +1,1674 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Codex IDE + Harness Generator: два уроки</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+
+:root{
+  --bg: #0a1130;
+  --surface: #11193f;
+  --surface-2: #172150;
+  --border: #2a3468;
+  --text: #e8ecfb;
+  --text-muted: #93a0c9;
+  --accent-green: #34d399;
+  --accent-green-dim: #133428;
+  --accent-amber: #f2b84b;
+  --accent-amber-dim: #3a2c10;
+  --accent-violet: #8ea2ff;
+  --accent-violet-dim: #1c2455;
+  --accent-red: #fb7185;
+}
+
+body{
+  background:
+    radial-gradient(ellipse 900px 500px at 15% -10%, rgba(142,162,255,.10), transparent),
+    radial-gradient(ellipse 700px 400px at 100% 20%, rgba(52,211,153,.06), transparent),
+    var(--bg);
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+
+html{scroll-behavior:smooth;scroll-snap-type:y mandatory;height:100%;}
+
+body{
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  line-height:1.6;
+  overflow-x:hidden;
+}
+
+::selection{background:var(--accent-green-dim);color:var(--accent-green);}
+
+.progress-bar{
+  position:fixed;top:0;left:0;height:3px;
+  background:linear-gradient(90deg,var(--accent-green),var(--accent-violet));
+  width:0%;z-index:1000;transition:width .1s linear;
+}
+.nav-dots{
+  position:fixed;right:22px;top:50%;transform:translateY(-50%);
+  display:flex;flex-direction:column;gap:10px;z-index:1000;
+}
+.nav-dot{
+  width:8px;height:8px;border-radius:50%;background:var(--border);
+  cursor:pointer;transition:all .25s;border:none;padding:0;
+}
+.nav-dot:hover{background:var(--text-muted);}
+.nav-dot.active{background:var(--accent-violet);transform:scale(1.4);}
+@media (max-width:720px){.nav-dots{display:none;}}
+
+.mono{font-family:'IBM Plex Mono',monospace;}
+
+section{
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  padding:6vh 8vw;
+  position:relative;
+  scroll-snap-align:start;
+  scroll-snap-stop:always;
+}
+
+.eyebrow{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:13px;
+  color:var(--accent-green);
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  margin-bottom:16px;
+  display:flex;align-items:center;gap:10px;
+}
+.eyebrow::before{content:'';width:24px;height:1px;background:var(--accent-green);}
+
+h1{
+  font-family:'IBM Plex Mono',monospace;
+  font-weight:600;
+  font-size:clamp(38px,6vw,68px);
+  line-height:1.15;
+  letter-spacing:-.01em;
+  max-width:900px;
+}
+h2{
+  font-family:'IBM Plex Mono',monospace;
+  font-weight:600;
+  font-size:clamp(30px,4vw,46px);
+  line-height:1.2;
+  max-width:800px;
+  margin-bottom:20px;
+}
+p.lead{
+  font-size:clamp(18px,1.9vw,22px);
+  color:var(--text-muted);
+  max-width:680px;
+  margin-top:20px;
+}
+
+.reveal{
+  opacity:0;
+  transform:translateY(28px);
+  transition:opacity .7s cubic-bezier(.2,.7,.3,1), transform .7s cubic-bezier(.2,.7,.3,1);
+}
+.reveal.visible{opacity:1;transform:translateY(0);}
+.reveal.delay-1{transition-delay:.12s;}
+.reveal.delay-2{transition-delay:.24s;}
+.reveal.delay-3{transition-delay:.36s;}
+
+/* HERO */
+.hero{align-items:flex-start;}
+.hero-branch{
+  margin-top:32px;
+  display:inline-flex;align-items:center;gap:10px;
+  font-family:'IBM Plex Mono',monospace;font-size:13px;
+  color:var(--text-muted);
+  background:var(--surface);
+  border:1px solid var(--border);
+  padding:8px 14px;border-radius:6px;
+}
+.hero-branch .dot{width:8px;height:8px;border-radius:50%;background:var(--accent-green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.scroll-hint{
+  position:absolute;bottom:6vh;left:8vw;
+  font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);
+  display:flex;align-items:center;gap:8px;
+}
+.scroll-hint svg{animation:bob 1.6s ease-in-out infinite;}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+
+/* TERMINAL MOCKUP */
+.terminal{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:10px;
+  max-width:640px;
+  width:100%;
+  margin-top:36px;
+  overflow:hidden;
+  box-shadow:0 20px 60px -20px rgba(0,0,0,.6);
+}
+.terminal-bar{
+  display:flex;align-items:center;gap:6px;
+  padding:10px 14px;background:var(--surface-2);
+  border-bottom:1px solid var(--border);
+}
+.terminal-bar span{width:10px;height:10px;border-radius:50%;background:#3a3f4b;}
+.terminal-bar .label{margin-left:10px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);}
+.terminal-body{padding:20px;font-family:'IBM Plex Mono',monospace;font-size:15.5px;min-height:120px;}
+.terminal-line{color:var(--text-muted);margin-bottom:10px;}
+.terminal-prompt{color:var(--accent-green);}
+.type-target{color:var(--accent-violet);border-right:2px solid var(--accent-violet);white-space:nowrap;overflow:hidden;display:inline-block;width:0;animation:type 2s steps(20,end) 1s forwards, blink .8s step-end infinite;}
+@keyframes type{to{width:9ch;}}
+@keyframes blink{50%{border-color:transparent;}}
+.suggest-list{
+  margin-top:14px;display:flex;flex-direction:column;gap:6px;
+  opacity:0;animation:fadein .5s ease 3.2s forwards;
+}
+@keyframes fadein{to{opacity:1;}}
+.suggest-item{
+  padding:7px 12px;background:var(--surface-2);border-radius:6px;
+  font-size:13px;color:var(--text-muted);border:1px solid transparent;
+}
+.suggest-item.active{border-color:var(--accent-violet);color:var(--text);}
+
+/* CONTEXT METHODS ROW */
+.methods{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:20px;
+  max-width:900px;margin-top:20px;
+}
+.method-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:22px;transition:border-color .3s, transform .3s;
+}
+.method-card:hover{border-color:var(--accent-violet);transform:translateY(-4px);}
+.method-card .icon{
+  width:36px;height:36px;border-radius:8px;background:var(--accent-violet-dim);
+  color:var(--accent-violet);display:flex;align-items:center;justify-content:center;
+  font-family:'IBM Plex Mono',monospace;font-weight:600;margin-bottom:14px;
+}
+.method-card h3{font-size:16px;font-weight:600;margin-bottom:8px;}
+.method-card p{font-size:15px;color:var(--text-muted);}
+
+/* REASONING SLIDER */
+.reasoning-panel{
+  max-width:760px;width:100%;margin-top:24px;
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:32px;
+}
+.reasoning-track{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:24px;
+}
+.rlevel{
+  padding:12px 8px;text-align:center;border-radius:8px;cursor:pointer;
+  font-family:'IBM Plex Mono',monospace;font-size:13px;
+  background:var(--surface-2);color:var(--text-muted);border:1px solid transparent;
+  transition:all .25s;
+}
+.rlevel.active{background:var(--accent-amber-dim);color:var(--accent-amber);border-color:var(--accent-amber);}
+.rlevel-desc{font-size:14.5px;color:var(--text-muted);min-height:44px;}
+.rlevel-desc b{color:var(--text);font-weight:600;}
+.gauges{display:flex;gap:32px;margin-top:22px;}
+.gauge{flex:1;}
+.gauge-label{font-size:12px;color:var(--text-muted);margin-bottom:8px;font-family:'IBM Plex Mono',monospace;}
+.gauge-bar{height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden;}
+.gauge-fill{height:100%;border-radius:3px;transition:width .4s ease;}
+.gauge-fill.speed{background:var(--accent-green);}
+.gauge-fill.reliability{background:var(--accent-violet);}
+
+/* BUTTON DEMO */
+.button-demo{
+  max-width:640px;width:100%;margin-top:28px;
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:26px 30px;
+}
+.button-demo-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+.button-demo-head .fname{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text-muted);}
+.button-demo-toggle{
+  display:flex;background:var(--surface-2);border-radius:8px;padding:3px;gap:2px;
+}
+.button-demo-toggle button{
+  font-family:'IBM Plex Mono',monospace;font-size:12px;padding:6px 14px;border-radius:6px;
+  border:none;background:transparent;color:var(--text-muted);cursor:pointer;
+}
+.button-demo-toggle button.active{background:var(--accent-violet-dim);color:var(--accent-violet);}
+.button-demo-stage{
+  display:flex;align-items:center;justify-content:center;padding:44px 0;
+  background:var(--surface-2);border-radius:10px;
+}
+.demo-btn{
+  padding:14px 34px;border-radius:10px;border:none;
+  font-family:'Inter',sans-serif;font-weight:600;font-size:14px;color:#e8ecfb;
+  background:#3a3f4b;cursor:default;transition:all .35s ease;
+}
+.demo-btn.bevel{
+  background:linear-gradient(180deg,#4ade80,#16a34a);
+  box-shadow:0 4px 0 #0f6b2e, 0 8px 18px -6px rgba(22,163,74,.55);
+  transform:translateY(-3px);
+}
+.button-demo-caption{margin-top:14px;font-size:14.5px;color:var(--text-muted);text-align:center;}
+
+/* APP MOCKUP (currency pairs) */
+.app-mockup{
+  max-width:640px;width:100%;margin-top:28px;
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  overflow:hidden;
+}
+.app-mockup-bar{
+  padding:12px 18px;background:var(--surface-2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);
+}
+.app-mockup-bar span.dot{width:8px;height:8px;border-radius:50%;background:var(--accent-green);}
+.app-mockup-body{padding:22px;}
+.app-mockup-section-title{font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;}
+.pair-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px;}
+.pair-card{
+  background:var(--surface-2);border-radius:8px;padding:12px 14px;
+  font-family:'IBM Plex Mono',monospace;
+}
+.pair-card .pair{font-size:14.5px;font-weight:500;color:var(--text);}
+.pair-card .rate{font-size:12px;color:var(--accent-green);margin-top:4px;}
+.pair-row.recent .pair-card{
+  background:var(--accent-violet-dim);
+  opacity:0;animation:cardin .5s ease forwards;
+}
+.pair-row.recent .pair-card:nth-child(1){animation-delay:.1s;}
+.pair-row.recent .pair-card:nth-child(2){animation-delay:.25s;}
+.pair-row.recent .pair-card:nth-child(3){animation-delay:.4s;}
+@keyframes cardin{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.pair-row.recent .pair-card .rate{color:var(--accent-violet);}
+
+/* DIFF MOCKUP */
+.diff-box{
+  max-width:640px;width:100%;margin-top:28px;
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;
+}
+.diff-file{padding:10px 16px;background:var(--surface-2);border-bottom:1px solid var(--border);
+  font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text-muted);display:flex;justify-content:space-between;}
+.diff-body{padding:0;font-family:'IBM Plex Mono',monospace;font-size:14.5px;}
+.diff-line{padding:6px 16px;white-space:pre;}
+.diff-line.rm{background:rgba(248,81,73,.08);color:#f0938d;}
+.diff-line.add{background:rgba(63,185,80,.08);color:#7ee787;opacity:0;animation:diffin .4s ease forwards;}
+.diff-line.add:nth-child(3){animation-delay:.4s;}
+.diff-line.add:nth-child(4){animation-delay:.6s;}
+.diff-line.add:nth-child(5){animation-delay:.8s;}
+.diff-line.add:nth-child(6){animation-delay:1s;}
+@keyframes diffin{from{opacity:0;transform:translateX(-6px);}to{opacity:1;transform:translateX(0);}}
+.implement-chip{
+  display:inline-block;margin-top:2px;padding:2px 8px;background:var(--accent-violet-dim);
+  color:var(--accent-violet);border-radius:4px;font-size:11.5px;
+}
+
+/* SUMMARY CALLOUT */
+.callout{
+  max-width:700px;border-left:2px solid var(--accent-amber);
+  padding:20px 28px;background:var(--surface);border-radius:0 10px 10px 0;margin-top:28px;
+}
+.callout p{color:var(--text-muted);font-size:16.5px;}
+.callout p+p{margin-top:10px;}
+
+/* QUIZ */
+.quiz-wrap{max-width:760px;width:100%;}
+.quiz-progress{
+  display:flex;gap:6px;margin-bottom:28px;
+}
+.quiz-dot{flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .3s;}
+.quiz-dot.answered{background:var(--accent-violet);}
+.quiz-dot.correct{background:var(--accent-green);}
+.quiz-dot.wrong{background:var(--accent-red);}
+
+.qcard{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:28px 30px;display:none;
+}
+.qcard.active{display:block;}
+.qnum{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent-violet);margin-bottom:10px;}
+.qtext{font-size:20px;font-weight:600;margin-bottom:22px;line-height:1.4;}
+.qopt{
+  display:flex;align-items:center;gap:12px;padding:13px 16px;margin-bottom:10px;
+  border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:16px;
+  transition:border-color .2s, background .2s;
+}
+.qopt:hover{border-color:var(--accent-violet);}
+.qopt .letter{
+  width:24px;height:24px;border-radius:50%;background:var(--surface-2);
+  display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;
+  font-size:12px;flex-shrink:0;
+}
+.qopt.correct{border-color:var(--accent-green);background:rgba(63,185,80,.08);}
+.qopt.correct .letter{background:var(--accent-green);color:#04340f;}
+.qopt.wrong{border-color:var(--accent-red);background:rgba(248,81,73,.08);}
+.qopt.wrong .letter{background:var(--accent-red);color:#3a0d0a;}
+.qopt.disabled{cursor:default;}
+.qcomment{
+  margin-top:18px;padding:14px 16px;background:var(--surface-2);border-radius:8px;
+  font-size:13.5px;color:var(--text-muted);display:none;
+}
+.qcomment.show{display:block;}
+.qnav{display:flex;justify-content:space-between;margin-top:22px;}
+.qbtn{
+  font-family:'IBM Plex Mono',monospace;font-size:13px;padding:10px 20px;border-radius:6px;
+  border:1px solid var(--border);background:var(--surface-2);color:var(--text);cursor:pointer;
+}
+.qbtn:hover{border-color:var(--accent-violet);}
+.qbtn:disabled{opacity:.3;cursor:default;}
+
+.quiz-result{display:none;text-align:center;padding:40px 0;}
+.quiz-result.show{display:block;}
+.quiz-result .score{font-family:'IBM Plex Mono',monospace;font-size:56px;font-weight:600;color:var(--accent-green);}
+.quiz-result p{color:var(--text-muted);margin-top:10px;}
+
+@media (max-width:720px){
+  .methods{grid-template-columns:1fr;}
+  .reasoning-track{grid-template-columns:repeat(2,1fr);}
+  .gauges{flex-direction:column;gap:16px;}
+}
+
+
+/* ===== SELECTOR / DECK SWITCHING ===== */
+.deck{display:none;}
+.deck.active{display:block;}
+.back-btn{
+  position:fixed;top:22px;left:22px;z-index:1000;
+  font-family:'IBM Plex Mono',monospace;font-size:12.5px;
+  background:var(--surface);border:1px solid var(--border);color:var(--text-muted);
+  padding:8px 14px;border-radius:8px;cursor:pointer;
+}
+.back-btn:hover{color:var(--text);border-color:var(--accent-violet, var(--accent-amber));}
+#navDots, #progressBar{display:none;}
+
+.selector{
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:6vh 8vw;text-align:center;
+  background:#0b0e14;color:#e6ebf3;
+}
+.selector h1{
+  font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:clamp(30px,4.5vw,50px);
+  line-height:1.2;max-width:800px;
+}
+.selector p{color:#8b95a8;font-size:17px;margin-top:16px;max-width:560px;}
+.selector-cards{display:flex;gap:24px;margin-top:44px;flex-wrap:wrap;justify-content:center;}
+.selector-card{
+  width:280px;text-align:left;padding:28px;border-radius:16px;cursor:pointer;
+  background:#12151d;border:1px solid #262b38;transition:transform .25s, border-color .25s;
+  font-family:'Inter',sans-serif;color:#e6ebf3;
+}
+.selector-card:hover{transform:translateY(-6px);}
+.selector-card .tag{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px;display:block;}
+.selector-card h3{font-size:20px;font-weight:600;margin-bottom:10px;}
+.selector-card p{font-size:14px;color:#8b95a8;margin:0;}
+.selector-card.codex{border-color:#262b38;}
+.selector-card.codex:hover{border-color:#8ea2ff;}
+.selector-card.codex .tag{color:#34d399;}
+.selector-card.harness:hover{border-color:#f0a83a;}
+.selector-card.harness .tag{color:#f0a83a;}
+
+/* ===== HARNESS DECK (scoped) ===== */
+.theme-harness{
+  --bg: #17402a;
+  --surface: #1e4d33;
+  --surface-2: #26593c;
+  --border: #3a6d4d;
+  --text: #eef6f0;
+  --text-muted: #aecab5;
+  --accent-amber: #f0a83a;
+  --accent-amber-dim: #3a2c10;
+  --accent-teal: #4de3a0;
+  --accent-teal-dim: #163d29;
+  --accent-red: #fb7185;
+  --accent-red-dim: #3a1418;
+
+  color:var(--text);
+  background:
+    radial-gradient(ellipse 900px 500px at 85% -10%, rgba(240,168,58,.10), transparent),
+    radial-gradient(ellipse 700px 400px at 0% 30%, rgba(77,227,160,.10), transparent),
+    var(--bg);
+}
+.theme-harness .panel, .theme-harness .module-hero, .theme-harness .qcard, .theme-harness .safety-card, .theme-harness .gterm, .theme-harness .callout{box-shadow:0 10px 30px rgba(0,0,0,.25);}
+.theme-harness .eyebrow{
+  font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--accent-amber);
+  letter-spacing:.08em;text-transform:uppercase;margin-bottom:16px;
+  display:flex;align-items:center;gap:10px;
+}
+.theme-harness .eyebrow::before{content:'';width:24px;height:1px;background:var(--accent-amber);}
+.theme-harness h1{
+  font-family:'IBM Plex Mono',monospace;font-weight:600;
+  font-size:clamp(38px,6vw,66px);line-height:1.15;letter-spacing:-.01em;max-width:940px;
+}
+.theme-harness h2{
+  font-family:'IBM Plex Mono',monospace;font-weight:600;
+  font-size:clamp(28px,3.8vw,44px);line-height:1.2;max-width:820px;margin-bottom:18px;
+}
+.theme-harness p.lead{font-size:clamp(17px,1.8vw,21px);color:var(--text-muted);max-width:680px;margin-top:16px;}
+.theme-harness .hero{align-items:flex-start;}
+.theme-harness .hero-tag{
+  margin-top:28px;display:inline-flex;align-items:center;gap:10px;
+  font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text-muted);
+  background:var(--surface);border:1px solid var(--border);padding:8px 14px;border-radius:6px;
+}
+.theme-harness .hero-tag .dot{width:8px;height:8px;border-radius:50%;background:var(--accent-teal);animation:pulse 2s infinite;}
+.theme-harness .rails{margin-top:34px;max-width:640px;width:100%;}
+.theme-harness .rails svg{width:100%;height:auto;display:block;}
+.theme-harness #train{animation:chug 2.6s ease-in-out infinite;}
+@keyframes chug{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+.theme-harness #steam circle{animation:puff 3s ease-in infinite;}
+.theme-harness #steam circle:nth-child(2){animation-delay:.4s;}
+.theme-harness #steam circle:nth-child(3){animation-delay:.8s;}
+@keyframes puff{0%{opacity:.6;transform:translateY(0) scale(.8)}100%{opacity:0;transform:translateY(-18px) scale(1.3)}}
+.theme-harness .panel{
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  max-width:660px;width:100%;overflow:hidden;
+}
+.theme-harness .panel-bar{
+  display:flex;align-items:center;gap:6px;padding:10px 14px;background:var(--surface-2);border-bottom:1px solid var(--border);
+}
+.theme-harness .panel-bar span.d{width:10px;height:10px;border-radius:50%;background:#3f6b4d;}
+.theme-harness .panel-bar .label{margin-left:10px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);}
+.theme-harness .panel-body{padding:20px;font-family:'IBM Plex Mono',monospace;font-size:15px;}
+.theme-harness .tree-line{white-space:pre;color:var(--text-muted);line-height:1.75;}
+.theme-harness .tree-line .f-main{color:var(--accent-amber);font-weight:600;}
+.theme-harness .tree-line .f-config{color:var(--accent-teal);}
+.theme-harness .tree-line .f-comment{color:var(--text-muted);opacity:.7;}
+.theme-harness .yaml-line{padding:3px 0;color:var(--text-muted);}
+.theme-harness .yaml-key{color:var(--accent-teal);}
+.theme-harness .yaml-val{color:var(--text);}
+.theme-harness .module-toggles{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
+.theme-harness .mtoggle{
+  display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;
+  background:var(--surface-2);border:1px solid var(--border);cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:12.5px;
+  transition:border-color .2s;
+}
+.theme-harness .mtoggle:hover{border-color:var(--accent-amber);}
+.theme-harness .mtoggle .sw{width:28px;height:16px;border-radius:8px;background:var(--border);position:relative;transition:background .2s;flex-shrink:0;}
+.theme-harness .mtoggle .sw::after{content:'';position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--text-muted);transition:transform .2s, background .2s;}
+.theme-harness .mtoggle.on .sw{background:var(--accent-teal-dim);}
+.theme-harness .mtoggle.on .sw::after{transform:translateX(12px);background:var(--accent-teal);}
+.theme-harness .mtoggle.on{color:var(--text);}
+.theme-harness .mtoggle.locked{opacity:.55;cursor:default;}
+.theme-harness .steps{max-width:680px;width:100%;counter-reset:step;}
+.theme-harness .step{
+  display:flex;gap:16px;padding:16px 0;border-bottom:1px solid var(--border);
+}
+.theme-harness .step:last-child{border-bottom:none;}
+.theme-harness .step-num{
+  width:30px;height:30px;border-radius:50%;background:var(--accent-amber-dim);color:var(--accent-amber);
+  display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;flex-shrink:0;
+}
+.theme-harness .step-body b{color:var(--text);font-weight:600;}
+.theme-harness .step-body p{color:var(--text-muted);font-size:14.5px;margin-top:2px;}
+.theme-harness .step-code{
+  margin-top:8px;background:var(--surface-2);border-radius:6px;padding:8px 12px;font-family:'IBM Plex Mono',monospace;
+  font-size:12.5px;color:var(--accent-teal);display:inline-block;
+}
+.theme-harness .ftable{max-width:680px;width:100%;border-collapse:collapse;}
+.theme-harness .ftable tr{border-bottom:1px solid var(--border);}
+.theme-harness .ftable tr:last-child{border-bottom:none;}
+.theme-harness .ftable td{padding:12px 10px;font-size:15.5px;}
+.theme-harness .ftable td:first-child{font-family:'IBM Plex Mono',monospace;color:var(--accent-teal);white-space:nowrap;padding-right:20px;}
+.theme-harness .ftable td:last-child{color:var(--text-muted);}
+.theme-harness .module-hero{
+  max-width:680px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:32px;
+}
+.theme-harness .module-hero .mtag{
+  display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:12px;padding:4px 10px;border-radius:6px;
+  background:var(--accent-teal-dim);color:var(--accent-teal);margin-bottom:16px;
+}
+.theme-harness .module-icon{
+  width:48px;height:48px;border-radius:12px;background:var(--surface-2);
+  display:flex;align-items:center;justify-content:center;margin-bottom:18px;
+}
+.theme-harness .module-icon svg{width:24px;height:24px;stroke:var(--accent-amber);}
+.theme-harness .module-hero h3{font-size:20px;font-weight:600;margin-bottom:10px;}
+.theme-harness .module-hero p{color:var(--text-muted);font-size:16px;}
+.theme-harness .module-example{
+  margin-top:18px;background:var(--surface-2);border-radius:8px;padding:14px 16px;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text-muted);
+}
+.theme-harness .safety-grid{display:flex;flex-direction:column;gap:14px;max-width:680px;width:100%;}
+.theme-harness .safety-card{
+  display:flex;gap:14px;padding:16px 18px;background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  border-left:3px solid var(--accent-red);
+}
+.theme-harness .safety-card.warn{border-left-color:var(--accent-amber);}
+.theme-harness .safety-card .si{
+  width:32px;height:32px;border-radius:8px;background:var(--accent-red-dim);color:var(--accent-red);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-weight:600;
+}
+.theme-harness .safety-card.warn .si{background:var(--accent-amber-dim);color:var(--accent-amber);}
+.theme-harness .safety-card h4{font-size:16.5px;font-weight:600;margin-bottom:4px;}
+.theme-harness .safety-card p{font-size:15px;color:var(--text-muted);}
+.theme-harness .safety-card code{color:var(--accent-red);font-family:'IBM Plex Mono',monospace;font-size:12.5px;}
+.theme-harness .glossary{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:760px;width:100%;}
+.theme-harness .gterm{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;}
+.theme-harness .gterm .t{font-family:'IBM Plex Mono',monospace;font-size:14.5px;color:var(--accent-amber);font-weight:600;margin-bottom:2px;}
+.theme-harness .gterm .pron{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--accent-teal);margin-bottom:6px;}
+.theme-harness .gterm .d{font-size:14.5px;color:var(--text-muted);}
+.theme-harness .callout{
+  max-width:700px;border-left:2px solid var(--accent-amber);
+  padding:20px 28px;background:var(--surface);border-radius:0 10px 10px 0;margin-top:24px;
+}
+.theme-harness .callout p{color:var(--text-muted);font-size:16.5px;}
+.theme-harness .callout p+p{margin-top:10px;}
+.theme-harness .callout b{color:var(--text);}
+.theme-harness .quiz-wrap{max-width:760px;width:100%;}
+.theme-harness .quiz-progress{display:flex;gap:6px;margin-bottom:28px;}
+.theme-harness .quiz-dot{flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .3s;}
+.theme-harness .quiz-dot.correct{background:var(--accent-teal);}
+.theme-harness .quiz-dot.wrong{background:var(--accent-red);}
+.theme-harness .qcard{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px 30px;display:none;}
+.theme-harness .qcard.active{display:block;}
+.theme-harness .qnum{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent-teal);margin-bottom:10px;}
+.theme-harness .qtext{font-size:20px;font-weight:600;margin-bottom:22px;line-height:1.4;}
+.theme-harness .qopt{
+  display:flex;align-items:center;gap:12px;padding:13px 16px;margin-bottom:10px;
+  border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:16px;transition:border-color .2s, background .2s;
+}
+.theme-harness .qopt:hover{border-color:var(--accent-amber);}
+.theme-harness .qopt .letter{
+  width:24px;height:24px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;
+  font-family:'IBM Plex Mono',monospace;font-size:12px;flex-shrink:0;
+}
+.theme-harness .qopt.correct{border-color:var(--accent-teal);background:rgba(61,220,151,.08);}
+.theme-harness .qopt.correct .letter{background:var(--accent-teal);color:#04241a;}
+.theme-harness .qopt.wrong{border-color:var(--accent-red);background:rgba(251,113,133,.08);}
+.theme-harness .qopt.wrong .letter{background:var(--accent-red);color:#3a0d0a;}
+.theme-harness .qopt.disabled{cursor:default;}
+.theme-harness .qcomment{margin-top:18px;padding:14px 16px;background:var(--surface-2);border-radius:8px;font-size:15px;color:var(--text-muted);display:none;}
+.theme-harness .qcomment.show{display:block;}
+.theme-harness .qnav{display:flex;justify-content:space-between;margin-top:22px;}
+.theme-harness .qbtn{
+  font-family:'IBM Plex Mono',monospace;font-size:13px;padding:10px 20px;border-radius:6px;
+  border:1px solid var(--border);background:var(--surface-2);color:var(--text);cursor:pointer;
+}
+.theme-harness .qbtn:hover{border-color:var(--accent-amber);}
+.theme-harness .qbtn:disabled{opacity:.3;cursor:default;}
+.theme-harness .quiz-result{display:none;text-align:center;padding:40px 0;}
+.theme-harness .quiz-result.show{display:block;}
+.theme-harness .quiz-result .score{font-family:'IBM Plex Mono',monospace;font-size:56px;font-weight:600;color:var(--accent-teal);}
+.theme-harness .quiz-result p{color:var(--text-muted);margin-top:10px;}
+@media (max-width:720px){.theme-harness .glossary{grid-template-columns:1fr;}.theme-harness .module-toggles{gap:8px;}}
+
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progressBar" style="display:none;"></div>
+<div class="nav-dots" id="navDots" style="display:none;"></div>
+
+<div id="selector" class="selector">
+  <div class="eyebrow reveal visible" style="justify-content:center;color:#8ea2ff;">курс · 2 уроки</div>
+  <h1 class="reveal visible">Обери презентацію</h1>
+  <p class="reveal visible">Дві окремі теми курсу — кожна відкривається на весь екран, зі своїм тестом наприкінці.</p>
+  <div class="selector-cards">
+    <button class="selector-card codex" onclick="showDeck('deck-codex')">
+      <span class="tag">урок 1</span>
+      <h3>Codex IDE</h3>
+      <p>Контекст у промптах, рівні reasoning, to-do → завдання. 13 слайдів + тест.</p>
+    </button>
+    <button class="selector-card harness" onclick="showDeck('deck-harness')">
+      <span class="tag">урок 2</span>
+      <h3>Harness Generator</h3>
+      <p>Як згенерувати робочу обв'язку для проєкту за кілька кроків. 10 слайдів + тест.</p>
+    </button>
+  </div>
+</div>
+
+<div id="deck-codex" class="deck">
+  <button class="back-btn" onclick="showSelector()">← До вибору теми</button>
+
+
+
+<section>
+  <div class="eyebrow reveal">перш ніж почати · що таке Codex</div>
+  <h2 class="reveal delay-1">Що таке Codex і навіщо він потрібен</h2>
+  <p class="lead reveal delay-1">Codex — це AI-помічник для програмістів від компанії OpenAI. На відміну від звичайної підказки коду, Codex працює сам: читає ваш проєкт, вносить у нього зміни, перевіряє, чи все працює, і готує ці зміни до збереження — майже без вашої участі. Усе це відбувається в окремому безпечному «пісочному» середовищі, тому він не може випадково зіпсувати основний проєкт.</p>
+
+  <svg viewBox="0 0 640 110" xmlns="http://www.w3.org/2000/svg" class="reveal delay-2" style="width:100%;max-width:620px;height:auto;display:block;margin-top:28px;">
+    <g font-family="IBM Plex Mono, monospace" font-size="12">
+      <rect x="0" y="30" width="130" height="50" rx="10" fill="#12151d" stroke="#262b38" stroke-width="1.5"/>
+      <text x="65" y="59" text-anchor="middle" fill="#e6ebf3">ваш проєкт</text>
+
+      <rect x="170" y="30" width="130" height="50" rx="10" fill="#1c2455" stroke="#8ea2ff" stroke-width="1.5"/>
+      <text x="235" y="53" text-anchor="middle" fill="#8ea2ff">Codex читає</text>
+      <text x="235" y="68" text-anchor="middle" fill="#8ea2ff">і вносить зміни</text>
+
+      <rect x="340" y="30" width="130" height="50" rx="10" fill="#3a2c10" stroke="#f2b84b" stroke-width="1.5"/>
+      <text x="405" y="53" text-anchor="middle" fill="#f2b84b">перевіряє</text>
+      <text x="405" y="68" text-anchor="middle" fill="#f2b84b">тестами</text>
+
+      <rect x="510" y="30" width="130" height="50" rx="10" fill="#133428" stroke="#34d399" stroke-width="1.5"/>
+      <text x="575" y="59" text-anchor="middle" fill="#34d399">готовий результат</text>
+
+      <path d="M130 55 L165 55" stroke="#5b6577" stroke-width="2" marker-end="url(#arrow1)"/>
+      <path d="M300 55 L335 55" stroke="#5b6577" stroke-width="2" marker-end="url(#arrow1)"/>
+      <path d="M470 55 L505 55" stroke="#5b6577" stroke-width="2" marker-end="url(#arrow1)"/>
+    </g>
+    <defs>
+      <marker id="arrow1" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#5b6577"/>
+      </marker>
+    </defs>
+  </svg>
+
+  <div class="methods reveal delay-2" style="margin-top:26px;">
+    <div class="method-card">
+      <div class="icon">▤</div>
+      <h3>Пише код</h3>
+      <p>Додає нові функції, виправляє помилки, покращує вже написаний код.</p>
+    </div>
+    <div class="method-card">
+      <div class="icon">✓</div>
+      <h3>Перевіряє себе</h3>
+      <p>Сам запускає тести і доопрацьовує рішення, поки все не запрацює як слід.</p>
+    </div>
+    <div class="method-card">
+      <div class="icon">⇉</div>
+      <h3>Працює в кілька рук</h3>
+      <p>Може одночасно вести декілька завдань паралельно — над різними частинами проєкту.</p>
+    </div>
+  </div>
+
+  <div class="callout reveal delay-3" style="margin-top:22px;">
+    <p><b style="color:var(--text);">Де ним користуються.</b> У ChatGPT, у терміналі (CLI), як розширення в редакторі коду (VS Code, Cursor, Windsurf) і як окрема програма для комп'ютера — це різні «входи» до одного й того самого помічника.</p>
+    <p>У цьому уроці йдеться саме про розширення в редакторі — Codex IDE: як показати помічнику потрібні файли, обрати, наскільки довго він думає, і перетворити нотатку в коді на готове завдання.</p>
+  </div>
+</section>
+
+<section class="hero">
+  <div class="eyebrow reveal">Codex IDE · урок</div>
+  <h1 class="reveal delay-1">Як зручніше працювати<br>з AI-помічником для коду</h1>
+  <p class="lead reveal delay-2">Три прості речі, які варто знати: як показати помічнику потрібні файли й картинки, як обрати, наскільки довго йому «думати» над завданням, і як звичайна нотатка в коді сама перетворюється на готове завдання.</p>
+  <div class="hero-branch reveal delay-3"><span class="dot"></span> git checkout -b feature/recent-pairs</div>
+  <p class="lead reveal delay-3" style="margin-top:12px;font-size:14px;">Перед початком автор, як завжди, перейшов на окрему гілку — щоб під час роботи з AI не зіпсувати основну версію проєкту (main).</p>
+  <div class="scroll-hint">
+    <span>гортайте вниз</span>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow reveal">01 / 13 · додавання контексту до промптів</div>
+  <h2 class="reveal delay-1">Як показати помічнику потрібний файл</h2>
+  <p class="lead reveal delay-1">Це працює так само, як у Codex CLI: символ @ дозволяє почати посилатися на файл у проєкті прямо в тексті запиту.</p>
+  <p class="lead reveal delay-1" style="margin-top:6px;">Пишете @ і починаєте вводити назву файлу. Повний шлях знати не обов'язково — досить кількох літер, і Codex сам покаже всі файли, назва яких збігається. Обираєте потрібний зі списку — і він додається до контексту наступного запиту.</p>
+
+  <div class="terminal reveal delay-2">
+    <div class="terminal-bar"><span></span><span></span><span></span><span class="label">prompt</span></div>
+    <div class="terminal-body">
+      <div class="terminal-line"><span class="terminal-prompt">&gt;</span> <span class="type-target">@page</span></div>
+      <div class="suggest-list">
+        <div class="suggest-item active">page.tsx</div>
+        <div class="suggest-item">page.module.css</div>
+        <div class="suggest-item">landing-page.tsx</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow reveal">02 / 13 · додавання файлів через кнопку Plus</div>
+  <h2 class="reveal delay-1">Другий спосіб — кнопка «плюс»</h2>
+  <p class="lead reveal delay-1">Якщо не хочеться друкувати @, той самий пошук файлу можна відкрити іконкою плюса внизу чату.</p>
+  <p class="lead reveal delay-1" style="margin-top:6px;">Принцип той самий: починаєте вводити назву — наприклад, page — і бачите всі відповідні файли проєкту, з яких можна вибрати потрібний.</p>
+
+  <div class="methods reveal delay-2" style="grid-template-columns:1fr;max-width:420px;">
+    <div class="method-card">
+      <div class="icon">+</div>
+      <h3>Кнопка «плюс»</h3>
+      <p>Той самий пошук файлу, тільки через іконку внизу чату, а не символ @.</p>
+    </div>
+  </div>
+
+  <div class="terminal reveal delay-3" style="margin-top:22px;max-width:420px;">
+    <div class="terminal-bar"><span></span><span></span><span></span><span class="label">чат</span></div>
+    <div class="terminal-body" style="min-height:auto;">
+      <div class="terminal-line" style="display:flex;align-items:center;gap:10px;">
+        <span style="width:22px;height:22px;border-radius:6px;background:var(--accent-violet-dim);color:var(--accent-violet);display:flex;align-items:center;justify-content:center;font-size:15px;">+</span>
+        <span>page</span>
+      </div>
+      <div class="suggest-list" style="opacity:1;animation:none;margin-top:12px;">
+        <div class="suggest-item active">page.tsx</div>
+        <div class="suggest-item">page.module.css</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow reveal">03 / 13 · додавання зображень як контексту</div>
+  <h2 class="reveal delay-1">Картинку теж можна додати в контекст</h2>
+  <p class="lead reveal delay-1">Кнопка Add image дозволяє знайти зображення на комп'ютері й додати його в чат. Але найзручніше — просто скопіювати й вставити картинку прямо в чат.</p>
+  <p class="lead reveal delay-1" style="margin-top:6px;">Наприклад: у автора був скриншот 3D-кнопки, знайдений через Google. Він скопіював це зображення й вставив його в чат — зверху одразу з'явився невеликий попередній перегляд картинки.</p>
+
+  <div class="methods reveal delay-2" style="grid-template-columns:1fr;max-width:420px;">
+    <div class="method-card">
+      <div class="icon">▣</div>
+      <h3>Картинка</h3>
+      <p>Add image або просте копіювання-вставлення скріншота прямо в чат.</p>
+    </div>
+  </div>
+
+  <div class="terminal reveal delay-3" style="margin-top:22px;max-width:420px;">
+    <div class="terminal-bar"><span></span><span></span><span></span><span class="label">чат</span></div>
+    <div class="terminal-body" style="min-height:auto;">
+      <div style="width:96px;height:64px;border-radius:8px;background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;position:relative;">
+        <div style="width:44px;height:30px;border-radius:6px;background:linear-gradient(180deg,#4ade80,#16a34a);box-shadow:0 2px 0 #0f6b2e;"></div>
+      </div>
+      <div class="terminal-line" style="margin-top:10px;color:var(--text-muted);font-size:12px;">зображення вставлено ✓</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow reveal">04 / 13 · приклад промпта із зображенням</div>
+  <h2 class="reveal delay-1">Файл + картинка в одному запиті</h2>
+  <p class="lead reveal delay-1">Далі був написаний такий запит — символ @ додає файл кнопки до контексту, а вставлена картинка показує, який ефект потрібен.</p>
+
+  <div class="terminal reveal delay-2">
+    <div class="terminal-bar"><span></span><span></span><span></span><span class="label">prompt</span></div>
+    <div class="terminal-body" style="min-height:auto;">
+      <div class="terminal-line" style="color:var(--text);">Can you update <span style="color:var(--accent-violet);">@button.tsx</span> to have a 3D bevel effect like in this image.</div>
+    </div>
+  </div>
+  <p class="lead reveal delay-3" style="margin-top:14px;">Тобто прохання просте: оновити button.tsx так, щоб кнопка мала об'ємний (3D bevel) ефект, як на прикріпленому зображенні. Після відправлення запиту Codex сам аналізує картинку й застосовує схожий стиль до коду кнопки.</p>
+</section>
+
+<section>
+  <div class="eyebrow reveal">05 / 13 · результат зміни кнопки</div>
+  <h2 class="reveal delay-1">Що саме змінив Codex</h2>
+  <p class="lead reveal delay-1">Завдання завершено — Codex оновив одразу два файли. У списку змін видно невеликий diff.</p>
+
+  <div class="diff-box reveal delay-2">
+    <div class="diff-file"><span>button.module.css</span><span>+CSS</span></div>
+    <div class="diff-body">
+      <div class="diff-line add">.button &#123;</div>
+      <div class="diff-line add">&nbsp;&nbsp;background: linear-gradient(#4ade80, #16a34a);</div>
+      <div class="diff-line add">&#125;</div>
+      <div class="diff-line add">.button-bevel &#123;</div>
+      <div class="diff-line add">&nbsp;&nbsp;box-shadow: 0 4px 0 #0f6b2e;</div>
+      <div class="diff-line add">&#125;</div>
+    </div>
+  </div>
+  <p class="lead reveal delay-3" style="margin-top:14px;">Якщо розгорнути diff, видно, що додано чимало нового CSS-коду — з'явився новий клас button bevel. А трохи нижче видно, що й сам файл button.tsx оновлено: фактично Codex переписав його майже повністю.</p>
+</section>
+
+<section>
+  <div class="eyebrow reveal">06 / 13 · перегляд кнопки в браузері</div>
+  <h2 class="reveal delay-1">Як це виглядає наживо</h2>
+  <p class="lead reveal delay-1">Далі — перевірка результату прямо в браузері, на формі, де рендериться цей компонент.</p>
+
+  <div class="button-demo reveal delay-2">
+    <div class="button-demo-head">
+      <span class="fname mono">button.tsx — перегляд у браузері</span>
+      <div class="button-demo-toggle">
+        <button id="btnBefore" class="active" onclick="setBtnState(false)">до</button>
+        <button id="btnAfter" onclick="setBtnState(true)">після</button>
+      </div>
+    </div>
+    <div class="button-demo-stage">
+      <button class="demo-btn" id="demoButton">Confirm</button>
+    </div>
+  </div>
+
+  <div class="callout reveal delay-3" style="margin-top:24px;">
+    <p>Виглядає нормально: об'ємний ефект справді з'явився знизу кнопки. Загалом ідею Codex зрозумів правильно.</p>
+    <p>Хоча сам автор, мабуть, зробив би трохи інакше — наприклад, змінив би кольори й зробив нижню частину темно-зеленою замість сірої. У такому випадку можна просто написати ще один запит: «можеш оновити це і те?» — і результат вийде ще кращим.</p>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow reveal">07 / 13 · рівні reasoning</div>
+  <h2 class="reveal delay-1">Скільки часу дати помічнику на роздуми</h2>
+  <p class="lead reveal delay-1">Крім контексту, у Codex є ще одна важлива налаштування — рівень reasoning effort. Його можна знайти в меню внизу. За замовчуванням стоїть medium — це рівень, який використовують найчастіше.</p>
+
+  <div class="reasoning-panel reveal delay-2">
+    <div class="reasoning-track">
+      <div class="rlevel" data-level="0">minimal</div>
+      <div class="rlevel" data-level="1">low</div>
+      <div class="rlevel active" data-level="2">medium</div>
+      <div class="rlevel" data-level="3">high</div>
+    </div>
+    <div class="rlevel-desc" id="rdesc"><b>Medium — золота середина.</b> Стандартний рівень, який підходить для більшості завдань.</div>
+    <div class="gauges">
+      <div class="gauge">
+        <div class="gauge-label">швидкість відповіді</div>
+        <div class="gauge-bar"><div class="gauge-fill speed" id="speedFill" style="width:55%"></div></div>
+      </div>
+      <div class="gauge">
+        <div class="gauge-label">надійність результату</div>
+        <div class="gauge-bar"><div class="gauge-fill reliability" id="relFill" style="width:55%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="lead reveal delay-3" style="margin-top:14px;">Чим нижчий рівень — тим швидше працює модель, бо витрачає менше часу на обдумування й планування дій. Але зворотний бік: результат іноді буває менш надійним, і помічник може пропустити важливі деталі (edge cases). Найвищий рівень, навпаки, означає більше планування — доводиться довше чекати й витрачається більше токенів, зате результат зазвичай надійніший.</p>
+</section>
+
+<section>
+  <div class="eyebrow reveal">08 / 13 · який рівень reasoning обирати</div>
+  <h2 class="reveal delay-1">Як обрати рівень під конкретне завдання</h2>
+  <p class="lead reveal delay-1">Усе залежить від того, наскільки складне завдання ви даєте помічнику.</p>
+
+  <div class="reveal delay-2" style="max-width:640px;width:100%;margin-top:18px;display:flex;gap:8px;">
+    <div style="flex:1;text-align:center;padding:14px 6px;border-radius:8px;background:var(--surface);border:1px solid var(--border);">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">просте</div>
+      <div class="mono" style="font-size:12px;color:var(--text);">minimal / low</div>
+    </div>
+    <div style="align-self:center;color:var(--text-muted);">→</div>
+    <div style="flex:1;text-align:center;padding:14px 6px;border-radius:8px;background:var(--accent-amber-dim);border:1px solid var(--accent-amber);">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">звичайне</div>
+      <div class="mono" style="font-size:12px;color:var(--accent-amber);">medium</div>
+    </div>
+    <div style="align-self:center;color:var(--text-muted);">→</div>
+    <div style="flex:1;text-align:center;padding:14px 6px;border-radius:8px;background:var(--surface);border:1px solid var(--border);">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">складне</div>
+      <div class="mono" style="font-size:12px;color:var(--text);">high</div>
+    </div>
+  </div>
+
+  <div class="callout reveal delay-2" style="margin-top:18px;">
+    <p><b style="color:var(--text);">Просте редагування або рефакторинг</b> — вистачить minimal або low.</p>
+    <p><b style="color:var(--text);">Більшість звичайних завдань</b> — залишайте medium, це непоганий баланс.</p>
+    <p><b style="color:var(--text);">Складні завдання, що потребують багато обдумування й планування</b> — варто підняти рівень до high.</p>
+    <p style="margin-top:14px;">І знову ж таки: що вищий рівень reasoning, то більше токенів буде витрачено. Тому для простих завдань обирати high точно не варто. Медіум — непоганий баланс для більшості завдань.</p>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow reveal">09 / 13 · перетворення to-do в завдання Codex</div>
+  <h2 class="reveal delay-1">Нотатка в коді сама стає завданням</h2>
+  <p class="lead reveal delay-1">Ще одна корисна дрібниця, яку Codex додав до розширення: to-do коментарі в коді можна перетворити на завдання, над яким помічник попрацює сам.</p>
+  <p class="lead reveal delay-1" style="margin-top:6px;">Буває так: розробляєте застосунок і залишаєте маленькі to-do коментарі в різних місцях коду — просто щоб нагадати собі повернутися й доробити щось пізніше. Наприклад, у головному компоненті сторінки вже був такий рядок:</p>
+
+  <div class="diff-box reveal delay-2" style="margin-top:10px;">
+    <div class="diff-file"><span>page.tsx</span><span>todo</span></div>
+    <div class="diff-body">
+      <div class="diff-line rm">// TODO: add a recent pair section here</div>
+    </div>
+  </div>
+  <p class="lead reveal delay-3" style="margin-top:14px;">Після встановлення розширення Codex прямо над цим рядком з'являється опція <span class="implement-chip mono">implement with Codex</span> — досить натиснути на неї, щоб запустити нове локальне завдання, у якому Codex попрацює над цим to-do замість вас.</p>
+</section>
+
+<section>
+  <div class="eyebrow reveal">10 / 13 · як Codex запускає завдання з to-do</div>
+  <h2 class="reveal delay-1">Що відбувається після натискання</h2>
+  <p class="lead reveal delay-1">Codex автоматично запускає нову чат-сесію з промптом, який уже містить текст цього to-do з коду.</p>
+  <p class="lead reveal delay-1" style="margin-top:6px;">Тобто помічнику одразу ставиться завдання замінити коментар повноцінною реалізацією — вручну нічого копіювати не потрібно.</p>
+
+  <div class="terminal reveal delay-2">
+    <div class="terminal-bar"><span></span><span></span><span></span><span class="label">нова сесія</span></div>
+    <div class="terminal-body" style="min-height:auto;">
+      <div class="terminal-line" style="color:var(--text);">Implement this TODO and replace the comment with the implementation:<br>// TODO: add a recent pair section here</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow reveal">11 / 13 · результат виконання to-do</div>
+  <h2 class="reveal delay-1">Завдання виконано — що видно в коді</h2>
+  <p class="lead reveal delay-1">Усі зміни одразу видно прямо на сторінці. Велика зелена смуга показує, де саме Codex додав нові рядки коду — це новий розділ і об'єкти, через які застосунок проходить, щоб вивести шаблон для кожної пари.</p>
+
+  <div class="diff-box reveal delay-2">
+    <div class="diff-file"><span>page.tsx</span><span>+5 −1</span></div>
+    <div class="diff-body">
+      <div class="diff-line rm">// TODO: add a recent pairs section here</div>
+      <div class="diff-line add">function RecentPairs() &#123;</div>
+      <div class="diff-line add">&nbsp;&nbsp;return (</div>
+      <div class="diff-line add">&nbsp;&nbsp;&nbsp;&nbsp;&lt;section className="recent-pairs"&gt;</div>
+      <div class="diff-line add">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#123;pairs.map(renderPairCard)&#125;</div>
+      <div class="diff-line add">&nbsp;&nbsp;&nbsp;&nbsp;&lt;/section&gt;)&#125;</div>
+    </div>
+  </div>
+  <p class="lead reveal delay-3" style="margin-top:14px;">Загалом виглядає нормально — але щоб переконатися остаточно, варто подивитися, як це відображається в браузері.</p>
+</section>
+
+<section>
+  <div class="eyebrow reveal">12 / 13 · перегляд нового розділу в браузері</div>
+  <h2 class="reveal delay-1">Новий розділ у застосунку</h2>
+  <p class="lead reveal delay-1">У застосунку вже був блок Popular pairs. Тепер поруч з'явився новий розділ — Recent pairs.</p>
+
+  <div class="app-mockup reveal delay-2">
+    <div class="app-mockup-bar"><span class="dot"></span> застосунок обміну валют — попередній перегляд у браузері</div>
+    <div class="app-mockup-body">
+      <div class="app-mockup-section-title">Popular pairs</div>
+      <div class="pair-row">
+        <div class="pair-card"><div class="pair">EUR / USD</div><div class="rate">1.0842</div></div>
+        <div class="pair-card"><div class="pair">USD / JPY</div><div class="rate">156.31</div></div>
+        <div class="pair-card"><div class="pair">GBP / USD</div><div class="rate">1.2695</div></div>
+      </div>
+      <div class="app-mockup-section-title">Recent pairs <span style="color:var(--accent-violet);">— новий розділ</span></div>
+      <div class="pair-row recent">
+        <div class="pair-card"><div class="pair">USD / UAH</div><div class="rate">41.20</div></div>
+        <div class="pair-card"><div class="pair">EUR / PLN</div><div class="rate">4.29</div></div>
+        <div class="pair-card"><div class="pair">BTC / USD</div><div class="rate">64 210</div></div>
+      </div>
+    </div>
+  </div>
+  <p class="lead reveal delay-3" style="margin-top:14px;">Новий блок виглядає майже ідентично до Popular pairs, тільки з іншим фоном. Загалом результат непоганий.</p>
+</section>
+
+<section>
+  <div class="eyebrow reveal">13 / 13 · підсумок</div>
+  <h2 class="reveal delay-1">Приємна дрібниця у робочому процесі</h2>
+  <div class="callout reveal delay-2">
+    <p>Тепер to-do можна додавати в код вручну під час розробки, а Codex підхопить їх пізніше — якщо не хочеться братися за них одразу.</p>
+    <p>І ще раз варто нагадати: коли нова функція додана і результат влаштовує — саме час зробити commit або відправити зміни на GitHub.</p>
+    <p>Це важливо з двох причин. По-перше, version control потрібен під час роботи з AI — без нього coding agent може дуже швидко зіпсувати кодову базу. По-друге, Codex Cloud залежить від того, щоб у вас був актуальний GitHub-репозиторій, на якому він може запускати завдання віддалено.</p>
+  </div>
+
+  <div class="reveal delay-3" style="margin-top:18px;display:flex;flex-direction:column;gap:8px;max-width:420px;">
+    <div class="hero-branch" style="width:fit-content;"><span class="dot" style="background:var(--accent-green);"></span> git commit -m "add recent pairs section"</div>
+    <div class="hero-branch" style="width:fit-content;"><span class="dot" style="background:var(--accent-violet);"></span> git push origin feature/recent-pairs</div>
+  </div>
+</section>
+
+<section id="quiz-section">
+  <div class="eyebrow reveal">перевірте себе</div>
+  <h2 class="reveal delay-1">10 простих запитань за темою</h2>
+
+  <div class="quiz-wrap reveal delay-2">
+    <div class="quiz-progress" id="quizProgress"></div>
+    <div id="quizCards"></div>
+    <div class="quiz-result" id="quizResult">
+      <div class="score" id="quizScore">0/10</div>
+      <p id="quizScoreMsg">Результат тесту</p>
+      <div class="qnav" style="justify-content:center;margin-top:24px;">
+        <button class="qbtn" onclick="restartQuiz()">Пройти ще раз</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="align-items:center;text-align:center;">
+  <div class="eyebrow reveal" style="justify-content:center;">наостанок</div>
+  <blockquote class="reveal delay-1" style="max-width:720px;font-family:'IBM Plex Mono',monospace;font-size:clamp(22px,3vw,34px);line-height:1.4;font-weight:600;">
+    «Інновація відрізняє лідера від того, хто йде слідом.»
+  </blockquote>
+  <p class="lead reveal delay-2" style="margin-top:6px;">— Стів Джобс, співзасновник Apple</p>
+</section>
+
+
+</div>
+
+<div id="deck-harness" class="deck theme-harness">
+  <button class="back-btn" onclick="showSelector()">← До вибору теми</button>
+
+
+
+<section class="hero">
+  <div class="eyebrow reveal">harness generator · інструкція</div>
+  <h1 class="reveal delay-1">Робоча обв'язка<br>для AI-агента за кілька кроків</h1>
+  <p class="lead reveal delay-2">Це <b style="color:var(--text);">генератор</b>: ви вказуєте йому шлях до свого проєкту — а він створює там набір файлів, які роблять роботу AI-агента повторюваною, контрольованою і безпечною. Сам генератор себе не змінює.</p>
+  <div class="hero-tag reveal delay-3"><span class="dot"></span> Інструкція для новачка</div>
+
+  <div class="rails reveal delay-3">
+    <svg viewBox="0 0 640 170" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="320" cy="150" rx="300" ry="10" fill="#0f2e1c" opacity="0.4"/>
+      <g id="train">
+        <rect x="150" y="60" width="150" height="55" rx="10" fill="#f0a83a"/>
+        <rect x="150" y="40" width="70" height="26" rx="6" fill="#f0a83a"/>
+        <rect x="160" y="46" width="24" height="16" rx="2" fill="#123d27"/>
+        <rect x="196" y="46" width="24" height="16" rx="2" fill="#123d27"/>
+        <rect x="230" y="70" width="60" height="34" rx="4" fill="#123d27" opacity="0.85"/>
+        <rect x="300" y="82" width="16" height="24" rx="3" fill="#41694c"/>
+        <circle cx="180" cy="122" r="16" fill="#123d27"/>
+        <circle cx="180" cy="122" r="6" fill="#aecab5"/>
+        <circle cx="255" cy="122" r="16" fill="#123d27"/>
+        <circle cx="255" cy="122" r="6" fill="#aecab5"/>
+        <g id="wagon">
+          <rect x="330" y="75" width="90" height="40" rx="6" fill="#26593c" stroke="#41694c" stroke-width="1.5"/>
+          <circle cx="352" cy="122" r="14" fill="#123d27"/>
+          <circle cx="352" cy="122" r="5" fill="#aecab5"/>
+          <circle cx="398" cy="122" r="14" fill="#123d27"/>
+          <circle cx="398" cy="122" r="5" fill="#aecab5"/>
+        </g>
+      </g>
+      <g id="steam" opacity="0.55">
+        <circle cx="240" cy="35" r="6" fill="#aecab5"/>
+        <circle cx="252" cy="20" r="8" fill="#aecab5"/>
+        <circle cx="268" cy="10" r="10" fill="#aecab5"/>
+      </g>
+      <line x1="10" y1="130" x2="630" y2="130" stroke="#41694c" stroke-width="4"/>
+      <line x1="10" y1="150" x2="630" y2="150" stroke="#41694c" stroke-width="4"/>
+      <g id="railTies"></g>
+    </svg>
+  </div>
+  <p class="lead reveal delay-3" style="margin-top:6px;font-size:14px;">Простими словами: harness — це «рейки», по яких їде агент, щоб не з'їхати в кювет.</p>
+
+  <div class="scroll-hint">
+    <span>гортайте вниз</span>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow reveal">01 / 10 · навіщо це потрібно</div>
+  <h2 class="reveal delay-1">Без harness агент їде хаотично</h2>
+  <p class="lead reveal delay-1">Harness (обв'язка) — це правила + вхідні дані + перевірки + формат результату + цикл покращення. Без нього AI-агент працює хаотично: щоразу по-різному. З ним кожен запуск дає той самий керований результат.</p>
+
+  <div class="panel reveal delay-2" style="margin-top:26px;">
+    <div class="panel-bar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="label">без harness / з harness</span></div>
+    <div class="panel-body" style="display:flex;gap:0;padding:0;">
+      <div style="flex:1;padding:20px;border-right:1px solid var(--border);">
+        <div style="color:var(--accent-red);font-size:12px;margin-bottom:10px;">БЕЗ HARNESS</div>
+        <svg viewBox="0 0 260 60" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block;margin-bottom:12px;">
+          <path d="M10 15 L60 45 L100 10 L140 50 L180 20 L205 40" fill="none" stroke="#fb7185" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="10" cy="15" r="5" fill="#f0a83a"/>
+          <path d="M205 40 L235 55 L250 50 L245 30 Z" fill="none" stroke="#fb7185" stroke-width="2" stroke-dasharray="3 3"/>
+          <text x="222" y="35" font-family="IBM Plex Mono, monospace" font-size="9" fill="#fb7185">кювет</text>
+        </svg>
+        <div style="color:var(--text-muted);font-size:12.5px;line-height:2;">запуск 1 → випадковий результат<br>запуск 2 → інший підхід<br>запуск 3 → зламав щось зайве</div>
+      </div>
+      <div style="flex:1;padding:20px;">
+        <div style="color:var(--accent-teal);font-size:12px;margin-bottom:10px;">З HARNESS</div>
+        <svg viewBox="0 0 260 60" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block;margin-bottom:12px;">
+          <line x1="10" y1="20" x2="250" y2="20" stroke="#41694c" stroke-width="3"/>
+          <line x1="10" y1="34" x2="250" y2="34" stroke="#41694c" stroke-width="3"/>
+          <line x1="30" y1="16" x2="30" y2="38" stroke="#41694c" stroke-width="2"/>
+          <line x1="80" y1="16" x2="80" y2="38" stroke="#41694c" stroke-width="2"/>
+          <line x1="130" y1="16" x2="130" y2="38" stroke="#41694c" stroke-width="2"/>
+          <line x1="180" y1="16" x2="180" y2="38" stroke="#41694c" stroke-width="2"/>
+          <line x1="230" y1="16" x2="230" y2="38" stroke="#41694c" stroke-width="2"/>
+          <circle cx="10" cy="27" r="6" fill="#4de3a0"/>
+        </svg>
+        <div style="color:var(--text-muted);font-size:12.5px;line-height:2;">запуск 1 → за правилами<br>запуск 2 → той самий підхід<br>запуск 3 → звіт + перевірка</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow reveal">02 / 10 · з чого складається проєкт</div>
+  <h2 class="reveal delay-1">Структура генератора</h2>
+  <p class="lead reveal delay-1">Єдиний файл, який ви реально редагуєте перед запуском — це <span class="mono" style="color:var(--accent-teal);">harness.config.yaml</span>. Решта — шаблони й інструкції, їх чіпати не треба.</p>
+
+  <svg viewBox="0 0 620 100" xmlns="http://www.w3.org/2000/svg" class="reveal delay-1" style="width:100%;max-width:560px;height:auto;display:block;margin-top:20px;">
+    <rect x="10" y="25" width="170" height="50" rx="10" fill="#1e4d33" stroke="#41694c" stroke-width="1.5"/>
+    <text x="95" y="46" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12" fill="#eef6f0" font-weight="600">генератор</text>
+    <text x="95" y="62" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#aecab5">templates/ + config</text>
+
+    <line x1="180" y1="50" x2="420" y2="50" stroke="#f0a83a" stroke-width="2.5" stroke-dasharray="6 5"/>
+    <path d="M420 50 L408 44 L408 56 Z" fill="#f0a83a"/>
+    <text x="300" y="38" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#f0a83a">генерує файли в</text>
+
+    <rect x="430" y="15" width="180" height="70" rx="10" fill="#26593c" stroke="#4de3a0" stroke-width="1.5"/>
+    <text x="520" y="40" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12" fill="#eef6f0" font-weight="600">target_project</text>
+    <text x="520" y="58" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#aecab5">../my-app</text>
+    <text x="520" y="73" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#4de3a0">+ AGENTS.md, TASK.md…</text>
+  </svg>
+
+  <div class="panel reveal delay-2" style="margin-top:22px;">
+    <div class="panel-bar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="label">файлова структура</span></div>
+    <div class="panel-body">
+      <div class="tree-line"><span class="f-main">AGENT_HARNESS_PROJECT_CREATOR/</span>  <span class="f-comment">← генератор (ця папка)</span></div>
+      <div class="tree-line">├── 00_PROPOSAL_harness_generator.md  <span class="f-comment">дизайн / пропозиція</span></div>
+      <div class="tree-line">├── 01_run.md  <span class="f-comment">точка входу</span></div>
+      <div class="tree-line">├── 02_task.md  <span class="f-comment">завдання агенту</span></div>
+      <div class="tree-line">├── 03_concept.md  <span class="f-comment">що таке harness</span></div>
+      <div class="tree-line">├── README.md  <span class="f-comment">короткий опис</span></div>
+      <div class="tree-line">├── <span class="f-config">harness.config.yaml</span>  <span class="f-comment">← головний файл налаштувань</span></div>
+      <div class="tree-line">├── scripts/generate-harness.sh  <span class="f-comment">запуск</span></div>
+      <div class="tree-line">└── templates/  <span class="f-comment">шаблони, що копіюються в проєкт</span></div>
+      <div class="tree-line">    ├── AGENTS.md TASK.md CHECKLIST.md REPORT.md</div>
+      <div class="tree-line">    ├── scripts/run-harness.sh</div>
+      <div class="tree-line">    └── skills/ wiki/ loops/</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow reveal">03 / 10 · кроки реалізації</div>
+  <h2 class="reveal delay-1">Сім кроків від конфігурації до результату</h2>
+
+  <div class="reveal delay-1" style="max-width:660px;width:100%;margin-top:8px;">
+    <svg viewBox="0 0 640 46" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block;">
+      <line x1="30" y1="23" x2="610" y2="23" stroke="#41694c" stroke-width="3"/>
+      <g id="stationDots"></g>
+    </svg>
+  </div>
+
+  <div class="steps reveal delay-2">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body"><b>Відкрий</b> harness.config.yaml у редакторі.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body"><b>Вкажи</b> <p style="display:inline;">target_project — шлях до проєкту, для якого треба harness (наприклад «../my-app»). Це обов'язково.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body"><b>Увімкни / вимкни модулі:</b><p>постав true або false біля core, skills, wiki, loops — залежно від потреби.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body"><b>Запусти</b> генератор:<div class="step-code">bash scripts/generate-harness.sh harness.config.yaml</div></div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body"><b>Передай завдання агенту:</b><p>скрипт виведе інструкцію — агент читає конфіг і 02_task.md і створює файли у вашому проєкті.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body"><b>Перевір результат:</b><p>у проєкті з'явиться harness, а звіт буде у &lt;target&gt;/OUTPUT/REPORT.md.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">7</div>
+      <div class="step-body"><b>Працюй далі:</b><p>заповни TASK.md і запускай scripts/run-harness.sh для кожної нової задачі.</p></div>
+    </div>
+  </div>
+
+  <div class="callout reveal delay-3">
+    <p><b>Порада.</b> Почни з мінімуму: увімкни лише core, переконайся що працює, а skills, wiki й loops додай пізніше.</p>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow reveal">04 / 10 · конфігурація та модулі</div>
+  <h2 class="reveal delay-1">harness.config.yaml вирішує все</h2>
+  <p class="lead reveal delay-1">Це єдиний файл, який ви реально редагуєте руками. У ньому лише два типи налаштувань: куди генерувати harness (target_project) і які модулі туди покласти (true/false).</p>
+  <p class="lead reveal delay-1" style="margin-top:6px;">Спробуйте увімкнути або вимкнути модулі нижче — так само, як true/false у конфігу.</p>
+
+  <div class="panel reveal delay-2" style="margin-top:20px;">
+    <div class="panel-bar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="label">harness.config.yaml</span></div>
+    <div class="panel-body">
+      <div class="yaml-line"><span class="yaml-key">target_project:</span> <span class="yaml-val">"../my-app"</span></div>
+      <div class="yaml-line"><span class="yaml-key">core:</span> <span class="yaml-val" id="valCore">true</span></div>
+      <div class="yaml-line"><span class="yaml-key">skills:</span> <span class="yaml-val" id="valSkills">false</span></div>
+      <div class="yaml-line"><span class="yaml-key">wiki:</span> <span class="yaml-val" id="valWiki">false</span></div>
+      <div class="yaml-line"><span class="yaml-key">loops:</span> <span class="yaml-val" id="valLoops">false</span></div>
+      <div class="module-toggles">
+        <div class="mtoggle on locked" id="tgCore"><span class="sw"></span> core (завжди)</div>
+        <div class="mtoggle" id="tgSkills" onclick="toggleModule('skills')"><span class="sw"></span> skills</div>
+        <div class="mtoggle" id="tgWiki" onclick="toggleModule('wiki')"><span class="sw"></span> wiki</div>
+        <div class="mtoggle" id="tgLoops" onclick="toggleModule('loops')"><span class="sw"></span> loops</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout reveal delay-3" style="margin-top:22px;">
+    <p><b>target_project</b> — обов'язкове поле. Це шлях до проєкту, у якому має з'явитися harness (наприклад «../my-app»). Без нього скрипт одразу зупиниться з помилкою.</p>
+    <p><b>core</b> вимкнути не можна — це базові файли (AGENTS, TASK, CHECKLIST, REPORT, scripts), без яких harness просто не працює. А ось <b>skills</b>, <b>wiki</b> і <b>loops</b> — опційні: постав true, якщо модуль потрібен, або false, якщо поки що ні.</p>
+    <p>Сам файл лише описує намір. Щоб зміни в конфігу реально спрацювали, треба ще запустити генератор — про це наступний крок.</p>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow reveal">05 / 10 · що з'явиться у проєкті</div>
+  <h2 class="reveal delay-1">Файли, які отримає ваш проєкт</h2>
+
+  <table class="ftable reveal delay-2">
+    <tr><td>AGENTS.md</td><td>Правила поведінки агента — «мозок правил»</td></tr>
+    <tr><td>TASK.md</td><td>Конкретне завдання на поточний запуск</td></tr>
+    <tr><td>CHECKLIST.md</td><td>Критерії перевірки якості</td></tr>
+    <tr><td>REPORT.md</td><td>Формат фінального звіту</td></tr>
+    <tr><td>INPUT / OUTPUT</td><td>Вхідні дані та результати роботи</td></tr>
+    <tr><td>scripts/</td><td>Скрипт запуску harness</td></tr>
+    <tr><td>.skills/</td><td>Багаторазові процедури (якщо skills: true)</td></tr>
+    <tr><td>wiki/</td><td>База знань проєкту (якщо wiki: true)</td></tr>
+    <tr><td>loops/</td><td>Цикли покращення (якщо loops: true)</td></tr>
+  </table>
+</section>
+
+<section>
+  <div class="eyebrow reveal">06 / 10 · опційний модуль</div>
+  <h2 class="reveal delay-1">SKILLs — багаторазові процедури</h2>
+  <p class="lead reveal delay-1">Перший з трьох опційних модулів. Це «як зробити повторюване завдання».</p>
+
+  <div class="module-hero reveal delay-2">
+    <div class="module-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
+    <span class="mtag">skills: true</span>
+    <h3>Процедура, яку не треба пояснювати щоразу</h3>
+    <p>Кожен запис у конфігу стає окремим файлом-скілом. Наприклад, «прогнати тести» — це вже готова інструкція, яку агент виконує однаково щоразу, а не вигадує заново.</p>
+    <div class="module-example">.skills/run-tests.md<br>.skills/deploy-staging.md</div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow reveal">07 / 10 · опційний модуль</div>
+  <h2 class="reveal delay-1">Wiki — довгострокова пам'ять проєкту</h2>
+  <p class="lead reveal delay-1">Другий опційний модуль. На відміну від TASK.md, який живе лише один запуск, wiki — це пам'ять, що зберігається довго.</p>
+
+  <div class="module-hero reveal delay-2">
+    <div class="module-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
+    <span class="mtag">wiki: true</span>
+    <h3>База знань, яка не зникає після запуску</h3>
+    <p>Тут накопичується архітектура проєкту, прийняті рішення, runbook-и та словник термінів — усе, що варто пам'ятати між різними завданнями.</p>
+    <div class="module-example">wiki/architecture.md<br>wiki/decisions.md<br>wiki/glossary.md</div>
+
+    <svg viewBox="0 0 300 90" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:280px;height:auto;display:block;margin-top:20px;">
+      <line x1="10" y1="80" x2="290" y2="80" stroke="#41694c" stroke-width="3"/>
+      <rect x="20" y="25" width="16" height="55" fill="#4de3a0"/>
+      <rect x="40" y="15" width="16" height="65" fill="#f0a83a"/>
+      <rect x="60" y="35" width="16" height="45" fill="#26593c" stroke="#41694c" stroke-width="1"/>
+      <rect x="80" y="20" width="16" height="60" fill="#4de3a0" opacity="0.7"/>
+      <rect x="100" y="30" width="16" height="50" fill="#f0a83a" opacity="0.75"/>
+      <rect x="120" y="18" width="16" height="62" fill="#26593c" stroke="#41694c" stroke-width="1"/>
+      <rect x="140" y="40" width="16" height="40" fill="#4de3a0" opacity="0.5"/>
+      <text x="220" y="40" font-family="IBM Plex Mono, monospace" font-size="11" fill="#aecab5">wiki/</text>
+      <text x="220" y="56" font-family="IBM Plex Mono, monospace" font-size="10" fill="#aecab5">пам'ять,</text>
+      <text x="220" y="70" font-family="IBM Plex Mono, monospace" font-size="10" fill="#aecab5">що росте</text>
+    </svg>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow reveal">08 / 10 · опційний модуль</div>
+  <h2 class="reveal delay-1">Loops — цикли покращення</h2>
+  <p class="lead reveal delay-1">Третій опційний модуль. Ітеративні цикли, у яких агент повторює роботу, поки не досягне мети або не вичерпає ліміт спроб.</p>
+
+  <div class="module-hero reveal delay-2">
+    <div class="module-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></div>
+    <span class="mtag">loops: true</span>
+    <h3>Мета + умова виходу + ліміт ітерацій</h3>
+    <p>Кожен loop має чітку мету, умову, коли зупинитись, і максимальну кількість ітерацій. Запускати можна разово або періодично — через команду /loop або за розкладом (cron).</p>
+    <div class="module-example">loop: goal → перевірка умови виходу → ітерація (max 5) → стоп</div>
+
+    <svg viewBox="0 0 300 140" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:280px;height:auto;display:block;margin-top:20px;">
+      <ellipse cx="150" cy="70" rx="120" ry="50" fill="none" stroke="#41694c" stroke-width="4" stroke-dasharray="10 8"/>
+      <circle r="9" fill="#f0a83a">
+        <animateMotion dur="4s" repeatCount="indefinite" path="M 150 20 A 120 50 0 1 1 149.9 20 Z"/>
+      </circle>
+    </svg>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow reveal">09 / 10 · на що звернути увагу</div>
+  <h2 class="reveal delay-1">Три речі, про які варто пам'ятати</h2>
+
+  <svg viewBox="0 0 300 130" xmlns="http://www.w3.org/2000/svg" class="reveal delay-1" style="width:160px;height:auto;display:block;margin:6px 0 22px;">
+    <circle cx="150" cy="55" r="46" fill="#3a1418" stroke="#fb7185" stroke-width="4"/>
+    <line x1="122" y1="27" x2="178" y2="83" stroke="#fb7185" stroke-width="7" stroke-linecap="round"/>
+    <line x1="178" y1="27" x2="122" y2="83" stroke="#fb7185" stroke-width="7" stroke-linecap="round"/>
+    <rect x="60" y="105" width="180" height="10" rx="4" fill="#f0a83a"/>
+    <rect x="60" y="105" width="30" height="10" rx="4" fill="#26593c"/>
+    <rect x="120" y="105" width="30" height="10" rx="4" fill="#26593c"/>
+    <rect x="180" y="105" width="30" height="10" rx="4" fill="#26593c"/>
+    <rect x="146" y="115" width="8" height="10" fill="#41694c"/>
+  </svg>
+
+  <div class="safety-grid reveal delay-2">
+    <div class="safety-card">
+      <div class="si">!</div>
+      <div>
+        <h4>Безпека</h4>
+        <p>Агент не виконує небезпечні команди без дозволу: <code>rm -rf</code>, <code>git reset --hard</code>, <code>git clean -fd</code>. Не чіпає .env, *.key, *.pem і не розкриває секрети.</p>
+      </div>
+    </div>
+    <div class="safety-card warn">
+      <div class="si">?</div>
+      <div>
+        <h4>Порожній target</h4>
+        <p>Якщо target_project не заданий або папки не існує — скрипт зупиниться з помилкою. Це нормально: просто перевірте шлях.</p>
+      </div>
+    </div>
+    <div class="safety-card warn">
+      <div class="si">i</div>
+      <div>
+        <h4>Малі зміни</h4>
+        <p>Harness навмисне змушує агента вносити невеликі контрольовані зміни й після кожного запуску писати звіт. Не варто робити «все й одразу».</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow reveal">10 / 10 · словник термінів</div>
+  <h2 class="reveal delay-1">12 термінів, які варто знати</h2>
+
+  <div class="glossary reveal delay-2">
+    <div class="gterm"><div class="t">Harness</div><div class="pron">[ˈгарніс]</div><div class="d">Робоча обв'язка для AI-агента: правила, вхід, перевірки, звіт, цикл.</div></div>
+    <div class="gterm"><div class="t">Generator</div><div class="pron">[ˈдженерейтор]</div><div class="d">Ця папка; створює harness в іншому проєкті, себе не змінює.</div></div>
+    <div class="gterm"><div class="t">Target project</div><div class="pron">[ˈтарґіт ˈпроджект]</div><div class="d">Цільовий проєкт, у який записується harness.</div></div>
+    <div class="gterm"><div class="t">Config</div><div class="pron">[ˈконфіг]</div><div class="d">harness.config.yaml — декларація, що і куди генерувати.</div></div>
+    <div class="gterm"><div class="t">Template</div><div class="pron">[ˈтемплейт]</div><div class="d">Файл-заготовка з templates/, який копіюється в target.</div></div>
+    <div class="gterm"><div class="t">Module</div><div class="pron">[ˈмодул]</div><div class="d">Група файлів: core / skills / wiki / loops.</div></div>
+    <div class="gterm"><div class="t">Core</div><div class="pron">[кор]</div><div class="d">Базові файли harness (AGENTS, TASK, CHECKLIST, REPORT, scripts).</div></div>
+    <div class="gterm"><div class="t">Skill</div><div class="pron">[скіл]</div><div class="d">Багаторазова процедура «як робити повторюване завдання».</div></div>
+    <div class="gterm"><div class="t">Wiki</div><div class="pron">[ˈвікі]</div><div class="d">Довгострокова база знань проєкту.</div></div>
+    <div class="gterm"><div class="t">Loop</div><div class="pron">[луп]</div><div class="d">Ітеративний цикл покращення з умовою виходу.</div></div>
+    <div class="gterm"><div class="t">CHECKLIST</div><div class="pron">[ˈчеклист]</div><div class="d">Список перевірок якості до / під час / після роботи.</div></div>
+    <div class="gterm"><div class="t">REPORT</div><div class="pron">[ріˈпорт]</div><div class="d">Звіт: Summary / Changes / Checks / Problems / Risks / Next.</div></div>
+  </div>
+</section>
+
+<section id="quiz-section-harness">
+  <div class="eyebrow reveal">перевірте себе</div>
+  <h2 class="reveal delay-1">10 запитань за темою Harness Generator</h2>
+
+  <div class="quiz-wrap reveal delay-2">
+    <div class="quiz-progress" id="quizProgressH"></div>
+    <div id="quizCardsH"></div>
+    <div class="quiz-result" id="quizResultH">
+      <div class="score" id="quizScoreH">0/10</div>
+      <p id="quizScoreMsgH">Результат тесту</p>
+      <div class="qnav" style="justify-content:center;margin-top:24px;">
+        <button class="qbtn" onclick="restartQuizH()">Пройти ще раз</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="align-items:center;text-align:center;">
+  <div class="eyebrow reveal" style="justify-content:center;">наостанок</div>
+  <blockquote class="reveal delay-1" style="max-width:720px;font-family:'IBM Plex Mono',monospace;font-size:clamp(22px,3vw,34px);line-height:1.4;font-weight:600;">
+    «Я обираю ліниву людину для складної роботи — вона знайде найлегший спосіб її зробити.»
+  </blockquote>
+  <p class="lead reveal delay-2" style="margin-top:6px;">— Білл Гейтс, співзасновник Microsoft</p>
+</section>
+
+
+</div>
+
+<script>
+
+let sections = [];
+let navDotEls = [];
+let navIo = null;
+
+function buildNav() {
+  if (navIo) { navIo.disconnect(); }
+  const navDotsWrap = document.getElementById('navDots');
+  navDotsWrap.innerHTML = '';
+  sections = Array.from(document.querySelectorAll('.deck.active section'));
+  sections.forEach((sec, i) => {
+    const dot = document.createElement('button');
+    dot.className = 'nav-dot';
+    dot.setAttribute('aria-label', 'Слайд ' + (i + 1));
+    dot.addEventListener('click', () => sec.scrollIntoView({ behavior: 'smooth' }));
+    navDotsWrap.appendChild(dot);
+  });
+  navDotEls = Array.from(navDotsWrap.children);
+  navIo = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const idx = sections.indexOf(entry.target);
+        navDotEls.forEach(d => d.classList.remove('active'));
+        if (navDotEls[idx]) navDotEls[idx].classList.add('active');
+      }
+    });
+  }, { threshold: 0.5 });
+  sections.forEach(sec => navIo.observe(sec));
+}
+
+function showDeck(id) {
+  document.querySelectorAll('.deck').forEach(d => d.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('selector').style.display = 'none';
+  document.getElementById('progressBar').style.display = 'block';
+  document.getElementById('navDots').style.display = 'flex';
+  window.scrollTo(0, 0);
+  buildNav();
+}
+
+function showSelector() {
+  document.querySelectorAll('.deck').forEach(d => d.classList.remove('active'));
+  document.getElementById('selector').style.display = 'flex';
+  document.getElementById('progressBar').style.display = 'none';
+  document.getElementById('navDots').style.display = 'none';
+  window.scrollTo(0, 0);
+}
+
+document.addEventListener('keydown', (e) => {
+  if (!document.querySelector('.deck.active')) return;
+  const currentIdx = navDotEls.findIndex(d => d.classList.contains('active'));
+  if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+    e.preventDefault();
+    const next = sections[Math.min(currentIdx + 1, sections.length - 1)];
+    if (next) next.scrollIntoView({ behavior: 'smooth' });
+  } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+    e.preventDefault();
+    const prev = sections[Math.max(currentIdx - 1, 0)];
+    if (prev) prev.scrollIntoView({ behavior: 'smooth' });
+  } else if (e.key === 'Escape') {
+    showSelector();
+  }
+});
+
+document.addEventListener('scroll', () => {
+  if (!document.querySelector('.deck.active')) return;
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressBar').style.width = pct + '%';
+});
+
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.15 });
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+/* ===== CODEX DECK SCRIPT ===== */
+function setBtnState(after) {
+  document.getElementById('demoButton').classList.toggle('bevel', after);
+  document.getElementById('btnBefore').classList.toggle('active', !after);
+  document.getElementById('btnAfter').classList.toggle('active', after);
+}
+
+const rDescriptions = [
+  '<b>Minimal — найшвидший.</b> Годиться для зовсім простих правок, коли думати особливо нема над чим.',
+  '<b>Low — швидкий.</b> Трохи більше уваги до деталей, але все ще швидко. Для нескладних змін.',
+  '<b>Medium — золота середина.</b> Стандартний рівень, який підходить для більшості завдань.',
+  '<b>High — найповільніший, зате найнадійніший.</b> Помічник довго все обдумує наперед. Варто вмикати для складних завдань, де ціна помилки висока.'
+];
+const rGauges = [ [90,25], [72,42], [55,55], [25,90] ];
+document.querySelectorAll('.rlevel').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.rlevel').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const i = +btn.dataset.level;
+    document.getElementById('rdesc').innerHTML = rDescriptions[i];
+    document.getElementById('speedFill').style.width = rGauges[i][0] + '%';
+    document.getElementById('relFill').style.width = rGauges[i][1] + '%';
+  });
+});
+
+const quizData = [
+  { q: "Яке завдання автор дав Codex із використанням зображення?", opts: ["Створити нову базу даних для користувачів","Оновити button.tsx, щоб кнопка мала 3D bevel-ефект, як на зображенні","Видалити компонент кнопки з проєкту"], correct: 1, comment: "Автор додав зображення 3D-кнопки та попросив Codex оновити button.tsx, щоб зробити схожий ефект." },
+  { q: "Коли доцільно використовувати високий рівень reasoning?", opts: ["Для найпростіших змін у тексті кнопки","Для складних завдань, які потребують більше аналізу й планування","Для закриття вікна редактора"], correct: 1, comment: "Високий reasoning краще підходить для складних завдань, але працює повільніше й використовує більше токенів." },
+  { q: "Що означає нижчий рівень reasoning у Codex?", opts: ["Модель взагалі перестає читати файли","Модель автоматично зливає зміни в main","Модель працює швидше, але результат може бути менш надійним"], correct: 2, comment: "Нижчий reasoning зменшує час на обдумування й планування, але може призвести до менш точного результату." },
+  { q: "Яку можливість Codex IDE додає для to-do коментарів у коді?", opts: ["Можливість приховувати код від GitHub","Можливість автоматично видаляти всі коментарі","Можливість перетворити to-do коментар на завдання для Codex"], correct: 2, comment: "Codex IDE може показувати опцію implement with Codex біля to-do коментаря та запускати завдання на його основі." },
+  { q: "Чому автор знову наголошує на важливості GitHub і version control?", opts: ["Тому що AI-агенти можуть швидко зіпсувати кодову базу, а Codex Cloud потребує актуального GitHub-репозиторію","Тому що без GitHub неможливо відкрити VS Code","Тому що GitHub автоматично пише весь код замість Codex"], correct: 0, comment: "Version control важливий для безпечної роботи з AI, а Codex Cloud використовує актуальний GitHub-репозиторій для віддалених завдань." },
+  { q: "Як можна додати зображення до контексту в Codex IDE?", opts: ["Тільки через GitHub Issues","Лише через файл package.json","Через кнопку Add image або копіюванням і вставкою зображення в чат"], correct: 2, comment: "У Codex IDE можна додати зображення через кнопку Add image або просто вставити його в чат." },
+  { q: "Який ще спосіб додати файл як контекст згадувався в уроці?", opts: ["Створити нову папку node_modules","Перезапустити VS Code","Натиснути іконку плюса внизу чату й знайти потрібний файл"], correct: 2, comment: "Файли можна додавати не лише через @, а й через кнопку плюса внизу чату." },
+  { q: "Для чого в Codex IDE додають контекст до промптів?", opts: ["Щоб вимкнути чат із Codex","Щоб Codex краще розумів, з якими файлами або матеріалами потрібно працювати","Щоб автоматично видалити старі гілки"], correct: 1, comment: "Контекст допомагає Codex точніше зрозуміти завдання та сфокусуватися на потрібних файлах або зображеннях." },
+  { q: "Чи потрібно вводити повний шлях до файлу під час додавання його через @?", opts: ["Так, завжди потрібно вводити повний абсолютний шлях","Ні, але потрібно спочатку створити pull request","Ні, можна почати вводити назву файлу, і Codex покаже збіги"], correct: 2, comment: "У Codex IDE можна ввести лише частину назви файлу, після чого Codex покаже відповідні файли з проєкту." },
+  { q: "Для чого використовується символ @ у промпті Codex IDE?", opts: ["Щоб створити новий GitHub-репозиторій","Щоб послатися на файл у проєкті та додати його до контексту","Щоб запустити браузер"], correct: 1, comment: "Символ @ дозволяє знайти файл у проєкті й додати його до контексту наступного промпта." }
+];
+
+let current = 0;
+const answers = new Array(quizData.length).fill(null);
+
+function renderQuiz() {
+  const container = document.getElementById('quizCards');
+  container.innerHTML = quizData.map((item, qi) => `
+    <div class="qcard ${qi === current ? 'active' : ''}" data-qi="${qi}">
+      <div class="qnum mono">Питання ${qi+1} / ${quizData.length}</div>
+      <div class="qtext">${item.q}</div>
+      ${item.opts.map((opt, oi) => `
+        <div class="qopt" data-oi="${oi}" onclick="answerQuiz(${qi},${oi})">
+          <span class="letter">${String.fromCharCode(97+oi)}</span><span>${opt}</span>
+        </div>
+      `).join('')}
+      <div class="qcomment" id="comment-${qi}">${item.comment}</div>
+      <div class="qnav">
+        <button class="qbtn" onclick="navQuiz(-1)" ${qi === 0 ? 'disabled' : ''}>Назад</button>
+        <button class="qbtn" onclick="navQuiz(1)">${qi === quizData.length - 1 ? 'Завершити' : 'Далі'}</button>
+      </div>
+    </div>
+  `).join('');
+  renderDots();
+}
+
+function renderDots() {
+  const wrap = document.getElementById('quizProgress');
+  wrap.innerHTML = quizData.map((_, i) => {
+    let cls = 'quiz-dot';
+    if (answers[i] !== null) cls += answers[i] === quizData[i].correct ? ' correct' : ' wrong';
+    return `<div class="${cls}"></div>`;
+  }).join('');
+}
+
+function answerQuiz(qi, oi) {
+  if (answers[qi] !== null) return;
+  answers[qi] = oi;
+  const card = document.querySelector(`.qcard[data-qi="${qi}"]`);
+  const opts = card.querySelectorAll('.qopt');
+  opts.forEach(o => o.classList.add('disabled'));
+  opts[quizData[qi].correct].classList.add('correct');
+  if (oi !== quizData[qi].correct) opts[oi].classList.add('wrong');
+  document.getElementById(`comment-${qi}`).classList.add('show');
+  renderDots();
+}
+
+function navQuiz(dir) {
+  if (current === quizData.length - 1 && dir === 1) {
+    finishQuiz();
+    return;
+  }
+  current = Math.max(0, Math.min(quizData.length - 1, current + dir));
+  document.querySelectorAll('.qcard').forEach(c => c.classList.toggle('active', +c.dataset.qi === current));
+}
+
+function finishQuiz() {
+  const score = answers.reduce((acc, a, i) => acc + (a === quizData[i].correct ? 1 : 0), 0);
+  document.getElementById('quizCards').style.display = 'none';
+  document.getElementById('quizProgress').style.display = 'none';
+  document.getElementById('quizResult').classList.add('show');
+  document.getElementById('quizScore').textContent = score + '/' + quizData.length;
+  document.getElementById('quizScoreMsg').textContent = score === quizData.length
+    ? 'Відмінно — усі відповіді правильні.'
+    : (score >= quizData.length * 0.7 ? 'Добрий результат.' : 'Варто повторити матеріал уроку.');
+}
+
+function restartQuiz() {
+  current = 0;
+  answers.fill(null);
+  document.getElementById('quizResult').classList.remove('show');
+  document.getElementById('quizCards').style.display = 'block';
+  document.getElementById('quizProgress').style.display = 'flex';
+  renderQuiz();
+}
+
+renderQuiz();
+
+/* ===== HARNESS DECK SCRIPT ===== */
+const stationDots = document.getElementById('stationDots');
+if (stationDots) {
+  let dotsHtml = '';
+  for (let i = 0; i < 7; i++) {
+    const x = 30 + i * (580 / 6);
+    dotsHtml += `<circle cx="${x}" cy="23" r="8" fill="#1e4d33" stroke="#f0a83a" stroke-width="2.5"/><text x="${x}" y="27" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#f0a83a">${i+1}</text>`;
+  }
+  stationDots.innerHTML = dotsHtml;
+}
+
+const ties = document.getElementById('railTies');
+if (ties) {
+  let tiesHtml = '';
+  for (let x = 20; x < 630; x += 24) {
+    tiesHtml += `<line x1="${x}" y1="126" x2="${x}" y2="154" stroke="#41694c" stroke-width="3"/>`;
+  }
+  ties.innerHTML = tiesHtml;
+}
+
+const modState = { skills: false, wiki: false, loops: false };
+function toggleModule(name) {
+  modState[name] = !modState[name];
+  const idMap = { skills: 'tgSkills', wiki: 'tgWiki', loops: 'tgLoops' };
+  const valMap = { skills: 'valSkills', wiki: 'valWiki', loops: 'valLoops' };
+  document.getElementById(idMap[name]).classList.toggle('on', modState[name]);
+  document.getElementById(valMap[name]).textContent = modState[name] ? 'true' : 'false';
+}
+
+const quizDataH = [
+  { q: "Що таке Harness Generator?", opts: ["Генератор, який створює у цільовому проєкті набір файлів для контрольованої роботи AI-агента","Окрема мовна модель для написання коду без файлів і перевірок","AI-агент, який автоматично змінює сам себе під час кожного запуску"], correct: 0, comment: "Harness Generator створює harness у вказаному проєкті, але сам генератор себе не змінює." },
+  { q: "Що означає параметр target_project у конфігурації?", opts: ["Назву моделі, яку використовує AI-агент","Шлях до проєкту, у який потрібно згенерувати harness","Папку, у якій генератор зберігає сам себе"], correct: 1, comment: "target_project визначає цільовий проєкт, куди генератор має записати файли harness." },
+  { q: "Для чого використовується файл TASK.md?", opts: ["Для зберігання секретних ключів","Для конкретного завдання на поточний запуск","Для довгострокової бази знань проєкту"], correct: 1, comment: "TASK.md призначений для опису конкретної задачі, яку агент має виконати під час поточного запуску." },
+  { q: "Які дії агент не повинен виконувати без дозволу?", opts: ["Небезпечні команди на кшталт rm -rf, git reset --hard і git clean -fd","Читання TASK.md і CHECKLIST.md","Створення REPORT.md після роботи"], correct: 0, comment: "У матеріалі підкреслено, що агент не виконує небезпечні команди без дозволу і не розкриває секрети." },
+  { q: "Який файл потрібно реально редагувати перед запуском генератора?", opts: ["README.md","REPORT.md","harness.config.yaml"], correct: 2, comment: "У матеріалі зазначено, що перед запуском реально редагується лише harness.config.yaml, а решта файлів є шаблонами або інструкціями." },
+  { q: "Якою командою запускається генератор harness?", opts: ["python manage.py runserver","bash scripts/generate-harness.sh harness.config.yaml","git reset --hard harness.config.yaml"], correct: 1, comment: "Генератор запускається через bash-скрипт scripts/generate-harness.sh із передаванням файлу harness.config.yaml." },
+  { q: "З якого модуля рекомендовано починати роботу новачку?", opts: ["core","loops","wiki"], correct: 0, comment: "У матеріалі рекомендовано спочатку увімкнути лише core, перевірити роботу, а skills, wiki і loops додати пізніше." },
+  { q: "Що таке wiki у структурі harness?", opts: ["Довгострокова база знань проєкту","Скрипт для видалення цільового проєкту","Файл фінального звіту після запуску"], correct: 0, comment: "Wiki зберігає довгострокову інформацію про проєкт: архітектуру, рішення, runbook і словник." },
+  { q: "Для чого потрібен harness у роботі AI-агента?", opts: ["Щоб зробити роботу агента повторюваною, контрольованою і безпечною","Щоб агент працював без правил, перевірок і звітів","Щоб повністю замінити цільовий проєкт новим репозиторієм"], correct: 0, comment: "Harness задає правила, вхідні дані, перевірки, формат результату і цикл покращення, щоб агент не працював хаотично." },
+  { q: "Які файли належать до базового core-набору harness?", opts: ["AGENTS.md, TASK.md, CHECKLIST.md, REPORT.md і scripts","Тільки wiki і loops","Лише .env, *.key і *.pem"], correct: 0, comment: "Core містить базові файли harness: правила агента, завдання, чеклист, звіт і скрипти запуску." }
+];
+
+let currentH = 0;
+const answersH = new Array(quizDataH.length).fill(null);
+
+function renderQuizH() {
+  const container = document.getElementById('quizCardsH');
+  container.innerHTML = quizDataH.map((item, qi) => `
+    <div class="qcard ${qi === currentH ? 'active' : ''}" data-qi="${qi}">
+      <div class="qnum mono">Питання ${qi+1} / ${quizDataH.length}</div>
+      <div class="qtext">${item.q}</div>
+      ${item.opts.map((opt, oi) => `
+        <div class="qopt" data-oi="${oi}" onclick="answerQuizH(${qi},${oi})">
+          <span class="letter">${String.fromCharCode(97+oi)}</span><span>${opt}</span>
+        </div>
+      `).join('')}
+      <div class="qcomment" id="comment-h-${qi}">${item.comment}</div>
+      <div class="qnav">
+        <button class="qbtn" onclick="navQuizH(-1)" ${qi === 0 ? 'disabled' : ''}>Назад</button>
+        <button class="qbtn" onclick="navQuizH(1)">${qi === quizDataH.length - 1 ? 'Завершити' : 'Далі'}</button>
+      </div>
+    </div>
+  `).join('');
+  renderDotsH();
+}
+
+function renderDotsH() {
+  const wrap = document.getElementById('quizProgressH');
+  wrap.innerHTML = quizDataH.map((_, i) => {
+    let cls = 'quiz-dot';
+    if (answersH[i] !== null) cls += answersH[i] === quizDataH[i].correct ? ' correct' : ' wrong';
+    return `<div class="${cls}"></div>`;
+  }).join('');
+}
+
+function answerQuizH(qi, oi) {
+  if (answersH[qi] !== null) return;
+  answersH[qi] = oi;
+  const card = document.querySelector(`.qcard[data-qi="${qi}"]`);
+  const opts = card.querySelectorAll('.qopt');
+  opts.forEach(o => o.classList.add('disabled'));
+  opts[quizDataH[qi].correct].classList.add('correct');
+  if (oi !== quizDataH[qi].correct) opts[oi].classList.add('wrong');
+  document.getElementById(`comment-h-${qi}`).classList.add('show');
+  renderDotsH();
+}
+
+function navQuizH(dir) {
+  if (currentH === quizDataH.length - 1 && dir === 1) { finishQuizH(); return; }
+  currentH = Math.max(0, Math.min(quizDataH.length - 1, currentH + dir));
+  document.querySelectorAll('.qcard').forEach(c => c.classList.toggle('active', +c.dataset.qi === currentH));
+}
+
+function finishQuizH() {
+  const score = answersH.reduce((acc, a, i) => acc + (a === quizDataH[i].correct ? 1 : 0), 0);
+  document.getElementById('quizCardsH').style.display = 'none';
+  document.getElementById('quizProgressH').style.display = 'none';
+  document.getElementById('quizResultH').classList.add('show');
+  document.getElementById('quizScoreH').textContent = score + '/' + quizDataH.length;
+  document.getElementById('quizScoreMsgH').textContent = score === quizDataH.length
+    ? 'Відмінно — усі відповіді правильні.'
+    : (score >= quizDataH.length * 0.7 ? 'Добрий результат.' : 'Варто повторити матеріал.');
+}
+
+function restartQuizH() {
+  currentH = 0;
+  answersH.fill(null);
+  document.getElementById('quizResultH').classList.remove('show');
+  document.getElementById('quizCardsH').style.display = 'block';
+  document.getElementById('quizProgressH').style.display = 'flex';
+  renderQuizH();
+}
+
+renderQuizH();
+
+</script>
+
+</body>
+</html>
