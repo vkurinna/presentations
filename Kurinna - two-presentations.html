@@ -986,6 +986,11 @@ p.lead{
     «Інновація відрізняє лідера від того, хто йде слідом.»
   </blockquote>
   <p class="lead reveal delay-2" style="margin-top:6px;">— Стів Джобс, співзасновник Apple</p>
+
+  <div class="reveal delay-3" style="margin-top:36px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px 28px;display:inline-flex;flex-direction:column;align-items:center;gap:12px;">
+    <img id="qrCode" width="160" height="160" style="border-radius:8px;background:#fff;padding:8px;" alt="QR-код презентації">
+    <div style="font-size:13px;color:var(--text-muted);max-width:220px;">Відскануйте, щоб зберегти й переглянути презентацію ще раз</div>
+  </div>
 </section>
 
 
@@ -1357,6 +1362,11 @@ p.lead{
     «Я обираю ліниву людину для складної роботи — вона знайде найлегший спосіб її зробити.»
   </blockquote>
   <p class="lead reveal delay-2" style="margin-top:6px;">— Білл Гейтс, співзасновник Microsoft</p>
+
+  <div class="reveal delay-3" style="margin-top:36px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px 28px;display:inline-flex;flex-direction:column;align-items:center;gap:12px;">
+    <img id="qrCodeH" width="160" height="160" style="border-radius:8px;background:#fff;padding:8px;" alt="QR-код презентації">
+    <div style="font-size:13px;color:var(--text-muted);max-width:220px;">Відскануйте, щоб зберегти й переглянути презентацію ще раз</div>
+  </div>
 </section>
 
 
@@ -1549,6 +1559,16 @@ function restartQuiz() {
   document.getElementById('quizCards').style.display = 'block';
   document.getElementById('quizProgress').style.display = 'flex';
   renderQuiz();
+}
+
+const presentationURL = 'https://vkurinna.github.io/presentations/Kurinna%20-%20two-presentations.html';
+const qrImg = document.getElementById('qrCode');
+if (qrImg) {
+  qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(presentationURL);
+}
+const qrImgH = document.getElementById('qrCodeH');
+if (qrImgH) {
+  qrImgH.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(presentationURL);
 }
 
 renderQuiz();
